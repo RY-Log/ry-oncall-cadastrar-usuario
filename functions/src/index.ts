@@ -104,7 +104,10 @@ export const oncall_cadastrar_usuario = functions.region('southamerica-east1').h
     }
     const validations = new Array<string>();
     if (!await validatePayload(data?.user_payload ?? {}, () => validations)) {
-        console.error({ data: data, validations: validations });
+        functions.logger.error({
+            data: data,
+            validations: validations
+        });
         throw new functions.https.HttpsError('failed-precondition', 'Request data not sent.', validations);
     }
     const userRecord = await authAdmin.createUser({
