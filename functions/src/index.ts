@@ -1,7 +1,9 @@
 import { validate } from 'email-validator';
 import { getAuth } from 'firebase-admin/auth';
-import * as functions from 'firebase-functions';
+import { region } from 'firebase-functions/v1';
 import { initializeApp } from 'firebase-admin/app';
+import { HttpsError } from 'firebase-functions/v1/https';
+import { error as logError } from 'firebase-functions/logger';
 import { DocumentReference, getFirestore } from 'firebase-admin/firestore';
 
 const appAdmin = initializeApp();
@@ -14,32 +16,32 @@ enum TipoPessoa {
 }
 
 interface UserPayload {
-    name: string,
-    email: string,
-    phone?: string,
-    password: string,
-    isClient: boolean,
-    document?: string,
-    isWebAdmin: boolean,
-    addressRef?: string,
-    isDeliveryman: boolean,
-    personType?: TipoPessoa,
-    license_number?: string,
-    car_number_plate?: string
+    name: string;
+    email: string;
+    phone?: string;
+    password: string;
+    isClient: boolean;
+    document?: string;
+    isWebAdmin: boolean;
+    addressRef?: string;
+    isDeliveryman: boolean;
+    personType?: TipoPessoa;
+    license_number?: string;
+    car_number_plate?: string;
 }
 
 interface UserPersistence {
-    nome: string,
-    email: string,
-    admin: boolean,
-    cliente: boolean,
-    cnh: string | null,
-    entregador: boolean,
-    celular: string | null,
-    documento: string | null,
-    placa_carro: string | null,
-    tipo_pessoa: TipoPessoa | null,
-    endereco_ref: DocumentReference | null
+    nome: string;
+    email: string;
+    admin: boolean;
+    cliente: boolean;
+    cnh: string | null;
+    entregador: boolean;
+    celular: string | null;
+    documento: string | null;
+    placa_carro: string | null;
+    tipo_pessoa: TipoPessoa | null;
+    endereco_ref: DocumentReference | null;
 }
 
 async function validateEmail(email: string, fn: () => Array<string>) {
@@ -98,17 +100,17 @@ function formatarCPF_CNPJ(documento: string): string {
     return '';
 }
 
-export const oncall_cadastrar_usuario = functions.region('southamerica-east1').https.onCall(async (data: { user_payload: UserPayload }, context) => {
+export const oncall_cadastrar_usuario = region('southamerica-east1').https.onCall(async (data: { user_payload: UserPayload }, context) => {
     if (!context.auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
+        throw new HttpsError('unauthenticated', 'The function must be called while authenticated.');
     }
     const validations = new Array<string>();
     if (!await validatePayload(data?.user_payload ?? {}, () => validations)) {
-        functions.logger.error({
+        logError({
             data: data,
             validations: validations
         });
-        throw new functions.https.HttpsError('failed-precondition', 'Request data not sent.', validations);
+        throw new HttpsError('failed-precondition', 'Request data not sent.', validations);
     }
     const userRecord = await authAdmin.createUser({
         email: data.user_payload.email.trim().toLowerCase(),
@@ -129,5 +131,7 @@ export const oncall_cadastrar_usuario = functions.region('southamerica-east1').h
         endereco_ref: data.user_payload.addressRef ? firestore.doc(data.user_payload.addressRef) : null
     }
     await firestore.collection('usuarios').doc(userRecord.uid).set(usuarioPersistir);
-    return { uid: userRecord.uid }
+    return {
+        uid: userRecord.uid
+    }
 });
